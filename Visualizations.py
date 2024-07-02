@@ -2,6 +2,8 @@
 
 File: Visualizations.py
 Used for all visualizations and animations related to the project
+
+Inspired by https://www.kaggle.com/code/huntingdata11/plotly-animated-and-interactive-nfl-plays
 """
 
 import pandas as pd
@@ -28,6 +30,33 @@ def animatePlay(games: pd.DataFrame, players: pd.DataFrame, plays: pd.DataFrame,
     tracking = tracking.query('playId == @playId and gameId == @gameId')
     homeTeam = games.query('gameId == @gameId')['homeTeamAbbr'].unique()[0]
     visitingTeam = games.query('gameId == @gameId')['visitorTeamAbbr'].unique()[0]
+
+    lineOfScrimmage = play.query('playId == @playId')['absoluteYardlineNumber'].iloc[0]
+    lineOfScrimmagePlot = go.Scatter(
+        x=[lineOfScrimmage, lineOfScrimmage],
+        y=[0, 53.3],
+        mode="lines",
+        line=dict(color='black', width=2),
+        showlegend=False
+    )
+
+    firstDownYard = lineOfScrimmage + play.query('playId == @playId')['yardsToGo'].iloc[0]
+    firstDownPlot = go.Scatter(
+        x=[firstDownYard, firstDownYard],
+        y=[0, 53.3],
+        mode="lines",
+        line=dict(color='yellow', width=2),
+        showlegend=False
+    )
+
+    teamNamesPlot = go.Scatter(
+        x=[5, 115],
+        y=[27, 27],
+        mode="text",
+        text=[homeTeam, visitingTeam],
+        textfont=dict(color="white", size=30, family="Courier New"),
+        showlegend=False
+    )
 
     topHashmarksPlot = go.Scatter(
         x=[i for i in range(10, 110)],
@@ -89,16 +118,19 @@ def animatePlay(games: pd.DataFrame, players: pd.DataFrame, plays: pd.DataFrame,
         )
 
         frame = go.Frame(
-            data=[topHashmarksPlot, bottomHashmarksPlot, topYardMarkersPlot, bottomYardmarkersPlot, playersScatterPlot])
+            data=[teamNamesPlot, topHashmarksPlot, bottomHashmarksPlot, topYardMarkersPlot, bottomYardmarkersPlot, firstDownPlot, lineOfScrimmagePlot,  playersScatterPlot])
         frames.append(frame)
 
     # Create the figure
     fig = go.Figure(
         data=[
+            teamNamesPlot,
             topHashmarksPlot,
             bottomHashmarksPlot,
             topYardMarkersPlot,
             bottomYardmarkersPlot,
+            firstDownPlot,
+            lineOfScrimmagePlot,
             go.Scatter(
                 x=tracking.query('frameId == 1')['x'],
                 y=tracking.query('frameId == 1')['y'],
@@ -165,16 +197,21 @@ def animatePlay(games: pd.DataFrame, players: pd.DataFrame, plays: pd.DataFrame,
                   fillcolor=nfl_teams_colors[visitingTeam][0],
                   layer="below")
 
-    # Add team names to endzones
-    fig.add_trace(go.Scatter(
-        x=[5, 115],
-        y=[27, 27],
-        mode="text",
-        text=[homeTeam, visitingTeam],
-        textfont=dict(color="white",
-                      size=30),
-        showlegend=False
-    ))
+    # Add down marker
+    # Use the first down yard variable from above
+    fig.add_shape(type="rect",
+                  x0=firstDownYard, y0=51.3, x1=firstDownYard+2, y1=53.3,
+                  line=dict(color='black'),
+                  fillcolor='orange',
+                  layer='below')
+
+    # Add the down on top of the down marker
+    fig.add_scatter(x=[firstDownYard+1],
+                    y=[52],
+                    mode="text",
+                    text=str(play.query('playId == @playId')['down'].iloc[0]),
+                    line=dict(color='black'),
+                    fillcolor='orange')
 
     fig.show()
 
@@ -186,4 +223,4 @@ if __name__ == '__main__':
     tackles = pd.read_csv("data/tackles.csv")
     tracking = pd.read_csv("data/tracking_week_1.csv")
 
-    animatePlay(games, players, plays, tracking, gameId=2022091103, playId=3126)
+    animatePlay(games, players, plays, tracking, gameId=2022090800, playId=167)
