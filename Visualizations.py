@@ -8,7 +8,6 @@ Inspired by https://www.kaggle.com/code/huntingdata11/plotly-animated-and-intera
 
 import pandas as pd
 import plotly.graph_objects as go
-import numpy as np
 
 from Constants import nfl_teams_colors
 from Cleaning import create_acceleration_vectors, create_velocity_vectors
@@ -109,16 +108,18 @@ def animatePlay(games: pd.DataFrame, players: pd.DataFrame, plays: pd.DataFrame,
     frames = []
     for frame_id in tracking['frameId'].unique():
 
+        tracking_frame = tracking.query('frameId == @frame_id')
+
         players_scatter_plot = go.Scatter(
-            x=tracking.query('frameId == @frame_id')['x'],
-            y=tracking.query('frameId == @frame_id')['y'],
-            text=tracking.query('frameId == @frame_id')['jerseyNumber'],
+            x=tracking_frame['x'],
+            y=tracking_frame['y'],
+            text=tracking_frame['jerseyNumber'],
             mode="markers+text",
             marker=dict(
-                color=[nfl_teams_colors[club][0] for club in tracking.query('frameId == @frame_id')['club']],
+                color=[nfl_teams_colors[club][0] for club in tracking_frame['club']],
                 size=16,
                 line=dict(
-                    color=[nfl_teams_colors[club][1] for club in tracking.query('frameId == @frame_id')['club']],
+                    color=[nfl_teams_colors[club][1] for club in tracking_frame['club']],
                     width=1
                 )
             ),
@@ -129,16 +130,13 @@ def animatePlay(games: pd.DataFrame, players: pd.DataFrame, plays: pd.DataFrame,
             )
         )
 
-        # Query for the current frame's tracking data
-        tracking_frame = tracking.query('frameId == @frame_id')
-
         # Collect x and y coordinates for all players' velocity vectors
         x_start = tracking_frame['x'].to_numpy()
         y_start = tracking_frame['y'].to_numpy()
-        x_2_velo = tracking_frame['x2_velocity'].to_numpy()
-        y_2_velo = tracking_frame['y2_velocity'].to_numpy()
-        x_2_accel = tracking_frame['x2_acceleration'].to_numpy()
-        y_2_accel = tracking_frame['y2_acceleration'].to_numpy()
+        x_2_velo = (tracking_frame['x_velocity_component'] + x_start).to_numpy()
+        y_2_velo = (tracking_frame['y_velocity_component'] + y_start).to_numpy()
+        x_2_accel = (tracking_frame['x_acceleration_component'] + x_start).to_numpy()
+        y_2_accel = (tracking_frame['y_acceleration_component'] + y_start).to_numpy()
 
         # Create lists to store x and y coordinates for lines
         x_lines_velo = []
@@ -262,8 +260,7 @@ def animatePlay(games: pd.DataFrame, players: pd.DataFrame, plays: pd.DataFrame,
     fig.add_shape(type="rect",
                   x0=first_down_yard, y0=51.3, x1=first_down_yard+2, y1=53.3,
                   line=dict(color='black'),
-                  fillcolor='orange',
-                  layer='below')
+                  fillcolor='orange')
 
     # Add the down on top of the down marker
     fig.add_scatter(x=[first_down_yard+1],
@@ -280,10 +277,14 @@ if __name__ == '__main__':
     players = pd.read_csv("data/players.csv")
     plays = pd.read_csv("data/plays.csv")
     tackles = pd.read_csv("data/tackles.csv")
-    tracking = pd.read_csv("data/tracking_week_1.csv")
+
+    tracking = []
+    for i in range(1, 10):
+        tracking.append(pd.read_csv(f"data/tracking_week_{i}.csv"))
+    tracking = pd.concat(tracking)
 
     tracking = create_acceleration_vectors(tracking)
 
     tracking = create_velocity_vectors(tracking)
 
-    animatePlay(games, players, plays, tracking, gameId=2022090800, playId=393, velocity=True, acceleration=True)
+    animatePlay(games, players, plays, tracking, gameId=2022091103, playId=3126, velocity=True)
