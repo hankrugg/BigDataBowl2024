@@ -13,18 +13,18 @@ from Constants import nfl_teams_colors
 from Cleaning import create_acceleration_vectors, create_velocity_vectors
 
 
-
-def animatePlay(games: pd.DataFrame, players: pd.DataFrame, plays: pd.DataFrame, tracking: pd.DataFrame, gameId: int,
-                playId: int, acceleration = False, velocity = False):
+def animatePlay(games: pd.DataFrame, plays: pd.DataFrame, tracking: pd.DataFrame, gameId: int,
+                playId: int, acceleration=False, velocity=False):
     """
     Function to animate a singular play for a given game
 
     :param games: DataFrame containing games data
-    :param players: DataFrame containing players data
     :param plays: DataFrame containing plays data
     :param tracking: DataFrame containing tracking data
     :param gameId: ID of the game to animate
     :param playId: ID of the play to animate
+    :param acceleration: Boolean indicating whether to show acceleration vectors. Default is false
+    :param velocity: Boolean indicating whether to show velocity vectors. Default is false
     """
     # Filter data based on gameId and playId
     game = games.query('gameId == @gameId')
@@ -35,7 +35,7 @@ def animatePlay(games: pd.DataFrame, players: pd.DataFrame, plays: pd.DataFrame,
     down = int(plays.query('playId == @playId')['down'].iloc[0])
     line_of_scrimmage = play.query('playId == @playId')['absoluteYardlineNumber'].iloc[0]
 
-
+    # Plot the line of scrimmage in black
     line_of_scrimmage_plot = go.Scatter(
         x=[line_of_scrimmage, line_of_scrimmage],
         y=[0, 53.3],
@@ -44,7 +44,11 @@ def animatePlay(games: pd.DataFrame, players: pd.DataFrame, plays: pd.DataFrame,
         showlegend=False
     )
 
-    first_down_yard = line_of_scrimmage + play.query('playId == @playId')['yardsToGo'].iloc[0]
+    # Plot the first down yard line in yellow
+    first_down_yard = line_of_scrimmage + play.query('playId == @playId')['yardsToGo'].iloc[0] if \
+    tracking.query('playId == @playId')['playDirection'].iloc[0] == 'Right' else line_of_scrimmage - \
+                                                                                 play.query('playId == @playId')[
+                                                                                     'yardsToGo'].iloc[0]
     first_down_plot = go.Scatter(
         x=[first_down_yard, first_down_yard],
         y=[0, 53.3],
@@ -53,6 +57,7 @@ def animatePlay(games: pd.DataFrame, players: pd.DataFrame, plays: pd.DataFrame,
         showlegend=False
     )
 
+    # Plot the team names in each endzone
     team_names_plot = go.Scatter(
         x=[5, 115],
         y=[27, 27],
@@ -62,6 +67,7 @@ def animatePlay(games: pd.DataFrame, players: pd.DataFrame, plays: pd.DataFrame,
         showlegend=False
     )
 
+    # Plot the top hashmarks
     top_hashmarks_plot = go.Scatter(
         x=[i for i in range(10, 110)],
         y=[53.3 - 23.58 for i in range(10, 110)],
@@ -71,7 +77,8 @@ def animatePlay(games: pd.DataFrame, players: pd.DataFrame, plays: pd.DataFrame,
         showlegend=False
     )
 
-    top_yard_markers_plot = go.Scatter(
+    # Plot the yard numbers on the top
+    top_yardmarkers_plot = go.Scatter(
         x=[20, 30, 40, 50, 60, 70, 80, 90, 100, 110],
         y=[43.5 for _ in range(10)],
         mode="text",
@@ -80,6 +87,7 @@ def animatePlay(games: pd.DataFrame, players: pd.DataFrame, plays: pd.DataFrame,
         showlegend=False
     )
 
+    # Plot the yardmarkers on the bottom
     bottom_yardmarkers_plot = go.Scatter(
         x=[20, 30, 40, 50, 60, 70, 80, 90, 100, 110],
         y=[10 for _ in range(10)],
@@ -89,6 +97,7 @@ def animatePlay(games: pd.DataFrame, players: pd.DataFrame, plays: pd.DataFrame,
         showlegend=False
     )
 
+    # Plot the hashmarks on the bottom
     bottom_hashmarks_plot = go.Scatter(
         x=[i for i in range(10, 110)],
         y=[23.58 for i in range(10, 110)],
@@ -98,13 +107,8 @@ def animatePlay(games: pd.DataFrame, players: pd.DataFrame, plays: pd.DataFrame,
         showlegend=False
     )
 
-    # first_down_marker = go.Scatter(x=[first_down_yard+1],
-    #                 y=[52],
-    #                 mode="text",
-    #                 text=str(down),
-    #                 line=dict(color='black'))
-
     # Create the frames
+    # Keep a list of all the different plots that need to be updated in each frame
     frames = []
     for frame_id in tracking['frameId'].unique():
 
@@ -114,7 +118,10 @@ def animatePlay(games: pd.DataFrame, players: pd.DataFrame, plays: pd.DataFrame,
             x=tracking_frame['x'],
             y=tracking_frame['y'],
             text=tracking_frame['jerseyNumber'],
+            # Use markers and text mode to show each player as a circle(marker) and each circle have the jersey
+            # number(text) inside the circle(marker)
             mode="markers+text",
+            # Make each marker correspond to the nfl_team_colors stored in Constants.py
             marker=dict(
                 color=[nfl_teams_colors[club][0] for club in tracking_frame['club']],
                 size=16,
@@ -148,6 +155,8 @@ def animatePlay(games: pd.DataFrame, players: pd.DataFrame, plays: pd.DataFrame,
         # Iterate through players to create line segments
         for i in range(len(tracking_frame)):
 
+            # These if statements are needed to either show or not show the velocity and acceleration vectors
+            # They will be created but will be empty if the respective variable is not set to TRUE
             if velocity:
                 x_lines_velo.extend([x_start[i], x_2_velo[i], None])  # Use None to separate lines
                 y_lines_velo.extend([y_start[i], y_2_velo[i], None])  # Use None to separate lines
@@ -172,28 +181,32 @@ def animatePlay(games: pd.DataFrame, players: pd.DataFrame, plays: pd.DataFrame,
         )
         # Create the frame with all elements
         frame = go.Frame(
-            data=[team_names_plot, top_hashmarks_plot, bottom_hashmarks_plot, top_yard_markers_plot,
+            data=[team_names_plot, top_hashmarks_plot, bottom_hashmarks_plot, top_yardmarkers_plot,
                   bottom_yardmarkers_plot, first_down_plot, line_of_scrimmage_plot, velocity_plot,
                   acceleration_plot, players_scatter_plot])
         frames.append(frame)
 
     # Create the figure
+    # This is the initial figure that will be shown before the play button is clicked
     fig = go.Figure(
         data=[
             team_names_plot,
             top_hashmarks_plot,
             bottom_hashmarks_plot,
-            top_yard_markers_plot,
+            top_yardmarkers_plot,
             bottom_yardmarkers_plot,
             first_down_plot,
             line_of_scrimmage_plot,
-            go.Scatter(),# Place holder for the velocity plot
-            go.Scatter(),# Place holder for the acceleration plot
+            go.Scatter(),  # Placeholder for the velocity plot. It should not be shown to start
+            go.Scatter(),  # Placeholder for the acceleration plot. It should not be shown to start
             go.Scatter(
                 x=tracking.query('frameId == 1')['x'],
                 y=tracking.query('frameId == 1')['y'],
                 text=tracking.query('frameId == 1')['jerseyNumber'],
+                # Use markers and text mode to show each player as a circle(marker) and each circle have the jersey
+                # number(text) inside the circle(marker)
                 mode="markers+text",
+                # Make each marker correspond to the nfl_team_colors stored in Constants.py
                 marker=dict(
                     color=[nfl_teams_colors[club][0] for club in tracking.query('frameId == 1')['club']],
                     size=16,
@@ -209,16 +222,21 @@ def animatePlay(games: pd.DataFrame, players: pd.DataFrame, plays: pd.DataFrame,
                 )
             ),
         ],
+        # Details of the plot
         layout=go.Layout(
+            # Background green
             plot_bgcolor='green',
             xaxis=dict(
+                # 0-120 because of the 10 yard endzones
                 range=[0, 120],
                 autorange=False,
                 zeroline=False,
+                # Use the gridlines as the 5-yard lines
                 showgrid=True,
                 showticklabels=False,
                 gridwidth=2,
                 tickwidth=5,
+                # 5-yard lines every 5 yards from 10-110
                 tickvals=list(range(10, 111, 5))
             ),
             yaxis=dict(
@@ -228,6 +246,7 @@ def animatePlay(games: pd.DataFrame, players: pd.DataFrame, plays: pd.DataFrame,
                 showgrid=False,
                 showticklabels=False
             ),
+            # Create the play button and make each frame last 0.1 second or 100 milliseconds
             hovermode="closest",
             showlegend=False,
             updatemenus=[dict(
@@ -241,14 +260,14 @@ def animatePlay(games: pd.DataFrame, players: pd.DataFrame, plays: pd.DataFrame,
         frames=frames
     )
 
-    # Add colored endzones
+    # Add colored endzones based on the team
     fig.add_shape(type="rect",
                   x0=0, y0=0, x1=10, y1=53.3,
                   line=dict(color=nfl_teams_colors[home_team][1]),
                   fillcolor=nfl_teams_colors[home_team][0],
                   layer="below")
 
-    # Add colored endzones
+    # Add colored endzones based on the team
     fig.add_shape(type="rect",
                   x0=110, y0=0, x1=120, y1=53.3,
                   line=dict(color=nfl_teams_colors[visiting_team][1]),
@@ -258,12 +277,13 @@ def animatePlay(games: pd.DataFrame, players: pd.DataFrame, plays: pd.DataFrame,
     # Add down marker
     # Use the first down yard variable from above
     fig.add_shape(type="rect",
-                  x0=first_down_yard, y0=51.3, x1=first_down_yard+2, y1=53.3,
+                  x0=first_down_yard, y0=51.3, x1=first_down_yard + 2, y1=53.3,
                   line=dict(color='black'),
-                  fillcolor='orange')
+                  fillcolor='orange',
+                  layer="below")
 
     # Add the down on top of the down marker
-    fig.add_scatter(x=[first_down_yard+1],
+    fig.add_scatter(x=[first_down_yard + 1],
                     y=[52],
                     mode="text",
                     text=str(play.query('playId == @playId')['down'].iloc[0]),
@@ -287,4 +307,4 @@ if __name__ == '__main__':
 
     tracking = create_velocity_vectors(tracking)
 
-    animatePlay(games, players, plays, tracking, gameId=2022091103, playId=3126, velocity=True)
+    animatePlay(games, plays, tracking, gameId=2022102310, playId=1318, velocity=True, acceleration=True)
