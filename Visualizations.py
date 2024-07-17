@@ -10,7 +10,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from Constants import nfl_teams_colors
-from Cleaning import create_acceleration_vectors, create_velocity_vectors
+from Preprocessing import create_acceleration_vectors, create_velocity_vectors
 
 
 def animatePlay(games: pd.DataFrame, plays: pd.DataFrame, tracking: pd.DataFrame, gameId: int,
