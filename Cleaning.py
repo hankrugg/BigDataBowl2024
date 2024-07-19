@@ -6,9 +6,11 @@ Created on Mon Jul 25 14:
 Cite: https://www.geeksforgeeks.org/handling-large-datasets-in-python/
 """
 import pandas as pd
-import numpy as np
 from dateutil.parser import parse
 from pandas import Series
+
+from tqdm import tqdm
+
 
 
 # Combine all datasets into one master
@@ -72,7 +74,7 @@ def clean_plays_data(plays: pd.DataFrame) -> pd.DataFrame:
     memory_before = plays.memory_usage().sum() / 1024
 
     # Drop all the plays that have been nullified by penalty because they players may play differently on these plays
-    plays = plays.drop(plays[plays['playNullifiedByPenalty'] == 'Y'].index)
+    plays = plays.drop(plays.query('playNullifiedByPenalty == "Y"').index)
 
     # Drop the plays where the expectedPointsAdded is None
     plays = plays.drop(plays[plays['expectedPointsAdded'].isnull()].index)
@@ -217,8 +219,15 @@ def clean_tracking_data(tracking: pd.DataFrame) -> pd.DataFrame:
 
 
 def clean_tackles_data(tackles: pd.DataFrame) -> pd.DataFrame:
+    """
+    Clean Tackles data-- reduce the memory by down casting ints
+    :param tackles: Raw tackles dataset
+    :return: Cleaned tackles dataset
+    """
+    # Keep track of memory in kilobytes
     memory_before = tackles.memory_usage().sum() / 1024
 
+    # Columns to downcast
     tackles_columns_to_convert_to_int = ['gameId', 'playId', 'nflId', 'tackle', 'assist', 'forcedFumble',
                                          'pff_missedTackle']
     tackles[tackles_columns_to_convert_to_int] = tackles[tackles_columns_to_convert_to_int].astype('int32')
@@ -230,13 +239,62 @@ def clean_tackles_data(tackles: pd.DataFrame) -> pd.DataFrame:
     return tackles
 
 
-# Remove duplicates
+def check_for_snap(plays: pd.DataFrame, tracking: pd.DataFrame) -> pd.DataFrame:
+    """
+    Checks if the there is tracking data when the ball is snapped for each play. Returns a dataframe with
+    plays without a snap removed
+    :param plays: Dataframe containing plays
+    :param tracking: Dataframe containing tracking data
+    :return: Plays dataframe containing only plays that tracking starts before the snap of the ball
+    """
+    # Keep a list of the indicis of invalid plays to then drop later
+    invalid_plays = []
 
+    # Iterate through all the game ids using tqdm which displays a progress bar
+    gamesId = plays['gameId'].unique()
+    for game in tqdm(gamesId):
+        playsId = plays.query('gameId == @game')['playId'].unique()
+        for play in playsId:
+            # Retrieve the index from each game
+            play_index = plays.query('gameId == @game and playId == @play').index.values[0]
+            # Get the list of events that have occurred that play
+            frame_events = tracking.query('gameId == @game and playId == @play')['event'].unique().tolist()
+        if 'ball_snap' not in frame_events:
+            # If a ball snap is not registered in the play events, this means that the player tracking
+            # started after the ball was snapped. This is not a play we want to train on and therefore will be removed
+            invalid_plays.append(play_index)
+    final_plays = plays.drop(index=invalid_plays)
+    print("Removed " + str(len(invalid_plays)) + " plays that do not have tracking at the snap of the ball.")
+    return final_plays
 
-# Remove plays that don't have a snap of the ball
+def check_for_end(plays: pd.DataFrame, tracking: pd.DataFrame) -> pd.DataFrame:
+    """
+    Checks if the there is tracking data when the play ends for each play. Returns a dataframe with
+    plays without the play end removed.
+    :param plays: Dataframe containing plays
+    :param tracking: Dataframe containing tracking data
+    :return: Plays dataframe containing only plays that tracking ends after the play ends
+    """
+    # Keep a list of the indicis of invalid plays to then drop later
+    invalid_plays = []
 
-
-# Remove plays that don't have an end to the play
+    # Iterate through all the game ids using tqdm which displays a progress bar
+    gamesId = plays['gameId'].unique()
+    for game in tqdm(gamesId):
+        playsId = plays.query('gameId == @game')['playId'].unique()
+        for play in playsId:
+            # Retrieve the index from each game
+            play_index = plays.query('gameId == @game and playId == @play').index.values[0]
+            # Get the list of events that have occurred that play
+            frame_events = tracking.query('gameId == @game and playId == @play')['event'].unique().tolist()
+        if 'tackle' not in frame_events or 'touchdown' not in frame_events or 'out_of_bounds' not in frame_events:
+            # If a tackle, touchdown, or out_of_bounds is not registered in the play events, this means that the
+            # player tracking ended before the play ended. This is not a play we want to train on and therefore
+            # will be removed
+            invalid_plays.append(play_index)
+    final_plays = plays.drop(index=invalid_plays)
+    print("Removed " + str(len(invalid_plays)) + " plays that do not have tracking for the end of the play.")
+    return final_plays
 
 
 if __name__ == '__main__':
@@ -250,10 +308,10 @@ if __name__ == '__main__':
         tracking.append(pd.read_csv(f"data/tracking_week_{i}.csv"))
     tracking = pd.concat(tracking)
 
-    games = transform_games_data(games)
-    plays = transform_plays_data(plays)
-    players = transform_players_data(players)
-    tracking = transform_tracking_data(tracking)
-    tackles = transform_tackles_data(tackles)
+    games = clean_games_data(games)
+    plays = clean_plays_data(plays)
+    players = clean_players_data(players)
+    tracking = clean_tracking_data(tracking)
+    tackles = clean_tackles_data(tackles)
 
     data = load_all_data(games, plays, tracking, players, tackles)
