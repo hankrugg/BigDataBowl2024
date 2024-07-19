@@ -46,7 +46,7 @@ def animatePlay(games: pd.DataFrame, plays: pd.DataFrame, tracking: pd.DataFrame
 
     # Plot the first down yard line in yellow
     first_down_yard = line_of_scrimmage + play.query('playId == @playId')['yardsToGo'].iloc[0] if \
-    tracking.query('playId == @playId')['playDirection'].iloc[0] == 'Right' else line_of_scrimmage - \
+    tracking.query('playId == @playId')['playDirection'].iloc[0] == 'right' else line_of_scrimmage - \
                                                                                  play.query('playId == @playId')[
                                                                                      'yardsToGo'].iloc[0]
     first_down_plot = go.Scatter(
