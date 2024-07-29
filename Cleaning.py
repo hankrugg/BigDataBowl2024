@@ -12,7 +12,6 @@ from pandas import Series
 from tqdm import tqdm
 
 
-
 # Combine all datasets into one master
 def load_all_data(games: pd.DataFrame, plays: pd.DataFrame, tracking: pd.DataFrame,
                   players: pd.DataFrame, tackles: pd.DataFrame) -> pd.DataFrame:
@@ -267,6 +266,7 @@ def check_for_snap(plays: pd.DataFrame, tracking: pd.DataFrame) -> pd.DataFrame:
     print("Removed " + str(len(invalid_plays)) + " plays that do not have tracking at the snap of the ball.")
     return final_plays
 
+
 def check_for_end(plays: pd.DataFrame, tracking: pd.DataFrame) -> pd.DataFrame:
     """
     Checks if the there is tracking data when the play ends for each play. Returns a dataframe with
@@ -295,23 +295,3 @@ def check_for_end(plays: pd.DataFrame, tracking: pd.DataFrame) -> pd.DataFrame:
     final_plays = plays.drop(index=invalid_plays)
     print("Removed " + str(len(invalid_plays)) + " plays that do not have tracking for the end of the play.")
     return final_plays
-
-
-if __name__ == '__main__':
-    games = pd.read_csv("data/games.csv")
-    players = pd.read_csv("data/players.csv")
-    plays = pd.read_csv("data/plays.csv")
-    tackles = pd.read_csv("data/tackles.csv")
-
-    tracking = []
-    for i in range(1, 10):
-        tracking.append(pd.read_csv(f"data/tracking_week_{i}.csv"))
-    tracking = pd.concat(tracking)
-
-    games = clean_games_data(games)
-    plays = clean_plays_data(plays)
-    players = clean_players_data(players)
-    tracking = clean_tracking_data(tracking)
-    tackles = clean_tackles_data(tackles)
-
-    data = load_all_data(games, plays, tracking, players, tackles)

@@ -1,5 +1,4 @@
 """
-
 File: Visualizations.py
 Used for all visualizations and animations related to the project
 
@@ -10,11 +9,10 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from Constants import nfl_teams_colors
-from Preprocessing import create_acceleration_vectors, create_velocity_vectors
 
 
-def animatePlay(games: pd.DataFrame, plays: pd.DataFrame, tracking: pd.DataFrame, gameId: int,
-                playId: int, acceleration=False, velocity=False):
+def animate_play(games: pd.DataFrame, plays: pd.DataFrame, tracking: pd.DataFrame, gameId: int,
+                 playId: int, acceleration=False, velocity=False):
     """
     Function to animate a singular play for a given game
 
@@ -46,9 +44,9 @@ def animatePlay(games: pd.DataFrame, plays: pd.DataFrame, tracking: pd.DataFrame
 
     # Plot the first down yard line in yellow
     first_down_yard = line_of_scrimmage + play.query('playId == @playId')['yardsToGo'].iloc[0] if \
-    tracking.query('playId == @playId')['playDirection'].iloc[0] == 'right' else line_of_scrimmage - \
-                                                                                 play.query('playId == @playId')[
-                                                                                     'yardsToGo'].iloc[0]
+        tracking.query('playId == @playId')['playDirection'].iloc[0] == 'right' else line_of_scrimmage - \
+                                                                                     play.query('playId == @playId')[
+                                                                                         'yardsToGo'].iloc[0]
     first_down_plot = go.Scatter(
         x=[first_down_yard, first_down_yard],
         y=[0, 53.3],
@@ -289,22 +287,8 @@ def animatePlay(games: pd.DataFrame, plays: pd.DataFrame, tracking: pd.DataFrame
                     text=str(play.query('playId == @playId')['down'].iloc[0]),
                     line=dict(color='black'))
 
+    fig.update_layout(
+        title={'text': str(play['playDescription'].iloc[0])}
+    )
+
     fig.show()
-
-
-if __name__ == '__main__':
-    games = pd.read_csv("data/games.csv")
-    players = pd.read_csv("data/players.csv")
-    plays = pd.read_csv("data/plays.csv")
-    tackles = pd.read_csv("data/tackles.csv")
-
-    tracking = []
-    for i in range(1, 10):
-        tracking.append(pd.read_csv(f"data/tracking_week_{i}.csv"))
-    tracking = pd.concat(tracking)
-
-    tracking = create_acceleration_vectors(tracking)
-
-    tracking = create_velocity_vectors(tracking)
-
-    animatePlay(games, plays, tracking, gameId=2022102310, playId=1318, velocity=True, acceleration=True)
