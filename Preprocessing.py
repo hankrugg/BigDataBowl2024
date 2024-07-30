@@ -47,6 +47,40 @@ def create_velocity_vectors(tracking: pd.DataFrame):
     return tracking_copy
 
 
+def _calculate_influence(row):
+    # Constants
+    MAX_SPEED = 18
+    INFLUENCE_RADIUS = 10
+
+    # Calculate scaling factors
+    sx = (INFLUENCE_RADIUS + (INFLUENCE_RADIUS * row['s_player']) / MAX_SPEED) / 2
+    sy = (INFLUENCE_RADIUS - (INFLUENCE_RADIUS * row['s_player']) / MAX_SPEED) / 2
+
+    # Create scaling and rotation matrices
+    scaling = np.array([[sx, 0], [0, sy]])
+    rotation = np.array([[np.cos(row['dir_rad_player']), -np.sin(row['dir_rad_player'])],
+                         [np.sin(row['dir_rad_player']), np.cos(row['dir_rad_player'])]])
+
+    # Covariance matrix
+    cov = rotation @ scaling @ scaling @ rotation.T
+    inv_cov = np.linalg.inv(cov)
+    det_cov = np.linalg.det(cov)
+
+    # Mean vector
+    x = row['x_player'] + (np.cos(row['dir_rad_player']) * row['s_player'] * 0.5)
+    y = row['y_player'] + (np.sin(row['dir_rad_player']) * row['s_player'] * 0.5)
+    mean_vect = np.array([x, y])
+
+    # Gaussian PDF calculation
+    point = np.array([row['x_football'], row['y_football']])
+    diff = point - mean_vect
+    exponent = -0.5 * (diff.T @ inv_cov @ diff)
+    norm_factor = 1 / (np.sqrt((2 * np.pi) ** len(mean_vect) * det_cov))
+    gaussian_pdf = norm_factor * np.exp(exponent)
+
+    return gaussian_pdf
+
+
 def create_player_influence(tracking: pd.DataFrame) -> pd.DataFrame:
     """
     Computes the degree of influence for each player on the ball carrier.
@@ -54,9 +88,6 @@ def create_player_influence(tracking: pd.DataFrame) -> pd.DataFrame:
     :return: DataFrame with column for the degree of influence the player has on the ball
     """
     tracking_copy = tracking.copy()
-    # Constants
-    MAX_SPEED = 18
-    INFLUENCE_RADIUS = 10
 
     # Filter football tracking data
     football_tracking = tracking_copy.query("displayName == 'football'")
@@ -66,37 +97,8 @@ def create_player_influence(tracking: pd.DataFrame) -> pd.DataFrame:
                                             on=['gameId', 'playId', 'frameId', 'time', 'playDirection'],
                                             suffixes=('_football', '_player'))
 
-    def calculate_influence(row):
-        # Calculate scaling factors
-        sx = (INFLUENCE_RADIUS + (INFLUENCE_RADIUS * row['s_player']) / MAX_SPEED) / 2
-        sy = (INFLUENCE_RADIUS - (INFLUENCE_RADIUS * row['s_player']) / MAX_SPEED) / 2
-
-        # Create scaling and rotation matrices
-        scaling = np.array([[sx, 0], [0, sy]])
-        rotation = np.array([[np.cos(row['dir_rad_player']), -np.sin(row['dir_rad_player'])],
-                             [np.sin(row['dir_rad_player']), np.cos(row['dir_rad_player'])]])
-
-        # Covariance matrix
-        cov = rotation @ scaling @ scaling @ rotation.T
-        inv_cov = np.linalg.inv(cov)
-        det_cov = np.linalg.det(cov)
-
-        # Mean vector
-        x = row['x_player'] + (np.cos(row['dir_rad_player']) * row['s_player'] * 0.5)
-        y = row['y_player'] + (np.sin(row['dir_rad_player']) * row['s_player'] * 0.5)
-        mean_vect = np.array([x, y])
-
-        # Gaussian PDF calculation
-        point = np.array([row['x_football'], row['y_football']])
-        diff = point - mean_vect
-        exponent = -0.5 * (diff.T @ inv_cov @ diff)
-        norm_factor = 1 / (np.sqrt((2 * np.pi) ** len(mean_vect) * det_cov))
-        gaussian_pdf = norm_factor * np.exp(exponent)
-
-        return gaussian_pdf
-
     # Apply influence calculation
-    football_and_player_tracking['influence_degree'] = football_and_player_tracking.apply(calculate_influence, axis=1)
+    football_and_player_tracking['influence_degree'] = football_and_player_tracking.apply(_calculate_influence, axis=1)
 
     # "Unmerge" the columns to get rid of the redundant football data
     football_and_player_tracking = football_and_player_tracking.drop(columns=['nflId_football', 'displayName_football',
@@ -108,7 +110,8 @@ def create_player_influence(tracking: pd.DataFrame) -> pd.DataFrame:
                                                                               'x_acceleration_component_football',
                                                                               'y_acceleration_component_football',
                                                                               'x_velocity_component_football',
-                                                                              'y_velocity_component_football'])
+                                                                              'y_velocity_component_football',
+                                                                              'influence_degree_football'])
 
     # Renaming columns to remove the _player suffix
     football_and_player_tracking = football_and_player_tracking.rename(columns={
@@ -128,7 +131,8 @@ def create_player_influence(tracking: pd.DataFrame) -> pd.DataFrame:
         'x_acceleration_component_player': 'x_acceleration_component',
         'y_acceleration_component_player': 'y_acceleration_component',
         'x_velocity_component_player': 'x_velocity_component',
-        'y_velocity_component_player': 'y_velocity_component'
+        'y_velocity_component_player': 'y_velocity_component',
+        'influence_degree_player': 'influence_degree'
     })
 
     return football_and_player_tracking

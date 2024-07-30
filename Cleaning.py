@@ -259,6 +259,7 @@ def check_for_snap(plays: pd.DataFrame, tracking: pd.DataFrame) -> pd.DataFrame:
             # Get the list of events that have occurred that play
             frame_events = tracking.query('gameId == @game and playId == @play')['event'].unique().tolist()
         if 'ball_snap' not in frame_events:
+            print('gameId = ' + str(game) + ' playId = ' + str(play))
             # If a ball snap is not registered in the play events, this means that the player tracking
             # started after the ball was snapped. This is not a play we want to train on and therefore will be removed
             invalid_plays.append(play_index)
