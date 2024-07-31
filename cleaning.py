@@ -32,13 +32,41 @@ def load_all_data(games: pd.DataFrame, plays: pd.DataFrame, tracking: pd.DataFra
     return df
 
 
+def check_for_missing_games_columns(games: pd.DataFrame) -> []:
+    valid_columns = ['gameId', 'season', 'week', 'gameDate', 'gameTimeEastern',
+                     'homeTeamAbbr', 'visitorTeamAbbr', 'homeFinalScore',
+                     'visitorFinalScore']
+
+    dataset_columns = games.columns
+
+    missing_columns = []
+    for column in valid_columns:
+        if column not in dataset_columns:
+            missing_columns.append(column)
+
+    return missing_columns
+
+
 def clean_games_data(games: pd.DataFrame) -> pd.DataFrame:
     """
     Clean games data-- reduce memory usage by downcasting integers and changing date time
     :param games: Raw games dataset
     :return: Cleaned games dataset
     """
+    clean = True
+
     memory_before = games.memory_usage().sum() / 1024
+
+    missing_columns = check_for_missing_games_columns(games)
+    if len(missing_columns) > 0:
+        clean = False
+        print(f"The games dataset is missing the following columns: {missing_columns}.")
+
+    # If there are any games with missing data, drop them
+    games = games.dropna(subset=['gameId', 'homeTeamAbbr', 'visitorTeamAbbr', 'homeFinalScore', 'visitorFinalScore'])
+
+    # If the date is wrong, correct it
+    games['gameDate'] = pd.to_datetime(_parse_date_column(games['gameDate'])).dt.date
 
     # Ensure the specified columns are int
     games_columns_to_convert_to_int = ['gameId', 'season', 'week', 'homeFinalScore', 'visitorFinalScore']
@@ -53,7 +81,10 @@ def clean_games_data(games: pd.DataFrame) -> pd.DataFrame:
     # There should be no NA values after cleaning
     memory_after = games.memory_usage().sum() / 1024
 
-    print("Games data has been cleaned and memory has been reduced by " + str(memory_before - memory_after) + " bytes.")
+    if clean:
+        print("Games data has been cleaned and memory has been reduced by " + str(memory_before - memory_after) + " bytes.")
+    else:
+        print("Cleaning the games data was attempted but there")
 
     return games
 

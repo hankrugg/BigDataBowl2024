@@ -1,5 +1,5 @@
 """
-File: Visualizations.py
+File: visualizations.py
 Used for all visualizations and animations related to the project
 
 Inspired by https://www.kaggle.com/code/huntingdata11/plotly-animated-and-interactive-nfl-plays
@@ -8,7 +8,7 @@ Inspired by https://www.kaggle.com/code/huntingdata11/plotly-animated-and-intera
 import pandas as pd
 import plotly.graph_objects as go
 
-from Constants import nfl_teams_colors
+from constants import nfl_teams_colors
 
 
 def animate_play(games: pd.DataFrame, plays: pd.DataFrame, tracking: pd.DataFrame, gameId: int,
@@ -119,7 +119,7 @@ def animate_play(games: pd.DataFrame, plays: pd.DataFrame, tracking: pd.DataFram
             # Use markers and text mode to show each player as a circle(marker) and each circle have the jersey
             # number(text) inside the circle(marker)
             mode="markers+text",
-            # Make each marker correspond to the nfl_team_colors stored in Constants.py
+            # Make each marker correspond to the nfl_team_colors stored in constants.py
             marker=dict(
                 color=[nfl_teams_colors[club][0] for club in tracking_frame['club']],
                 size=16,
@@ -204,7 +204,7 @@ def animate_play(games: pd.DataFrame, plays: pd.DataFrame, tracking: pd.DataFram
                 # Use markers and text mode to show each player as a circle(marker) and each circle have the jersey
                 # number(text) inside the circle(marker)
                 mode="markers+text",
-                # Make each marker correspond to the nfl_team_colors stored in Constants.py
+                # Make each marker correspond to the nfl_team_colors stored in constants.py
                 marker=dict(
                     color=[nfl_teams_colors[club][0] for club in tracking.query('frameId == 1')['club']],
                     size=16,
