@@ -82,7 +82,8 @@ def clean_games_data(games: pd.DataFrame) -> pd.DataFrame:
     memory_after = games.memory_usage().sum() / 1024
 
     if clean:
-        print("Games data has been cleaned and memory has been reduced by " + str(memory_before - memory_after) + " bytes.")
+        print("Games data has been cleaned and memory has been reduced by " + str(
+            memory_before - memory_after) + " bytes.")
     else:
         print("Cleaning the games data was attempted but there")
 
@@ -277,7 +278,7 @@ def check_for_snap(plays: pd.DataFrame, tracking: pd.DataFrame) -> pd.DataFrame:
     :param tracking: Dataframe containing tracking data
     :return: Plays dataframe containing only plays that tracking starts before the snap of the ball
     """
-    # Keep a list of the indicis of invalid plays to then drop later
+    # Keep a list of the indices of invalid plays to then drop later
     invalid_plays = []
 
     # Iterate through all the game ids using tqdm which displays a progress bar
@@ -307,7 +308,7 @@ def check_for_end(plays: pd.DataFrame, tracking: pd.DataFrame) -> pd.DataFrame:
     :param tracking: Dataframe containing tracking data
     :return: Plays dataframe containing only plays that tracking ends after the play ends
     """
-    # Keep a list of the indicis of invalid plays to then drop later
+    # Keep a list of the indices of invalid plays to then drop later
     invalid_plays = []
 
     # Iterate through all the game ids using tqdm which displays a progress bar
@@ -327,3 +328,34 @@ def check_for_end(plays: pd.DataFrame, tracking: pd.DataFrame) -> pd.DataFrame:
     final_plays = plays.drop(index=invalid_plays)
     print("Removed " + str(len(invalid_plays)) + " plays that do not have tracking for the end of the play.")
     return final_plays
+
+
+def check_for_ball_carrier(plays: pd.DataFrame, tracking: pd.DataFrame) -> pd.DataFrame:
+    """
+    Checks if the ball carrier is in the tracking data.
+    :param plays: Dataframe containing plays
+    :param tracking: Dataframe containing tracking data
+    :return: Plays dataframe containing only plays that the ball carrier is in the tracking data
+    """
+    # Keep a list of the indices of invalid plays to then drop later
+    invalid_plays = []
+
+    # Iterate through all the game ids using tqdm which displays a progress bar
+    gamesId = plays['gameId'].unique()
+    for game in tqdm(gamesId):
+        playsId = plays.query('gameId == @game')['playId'].unique()
+        for play in playsId:
+            # Retrieve the index from each game
+            play_index = plays.query('gameId == @game and playId == @play').index.values[0]
+            # Get the list of events that have occurred that play
+            frame_players = tracking.query('gameId == @game and playId == @play')['nflId'].unique().tolist()
+            # Get the ball carrier for that play
+            ball_carrier = plays.query('gameId == @game and playId == @play')['ballCarrierId'].unique()
+            # If the ballCarrierId is not in the list of players, remove that play
+            if ball_carrier not in frame_players:
+                invalid_plays.append(play_index)
+
+    final_plays = plays.drop(index=invalid_plays)
+    print("Removed " + str(len(invalid_plays)) + " plays that do not have the ball carrier in the frames.")
+    return final_plays
+

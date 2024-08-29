@@ -110,8 +110,7 @@ def create_player_influence(tracking: pd.DataFrame) -> pd.DataFrame:
                                                                               'x_acceleration_component_football',
                                                                               'y_acceleration_component_football',
                                                                               'x_velocity_component_football',
-                                                                              'y_velocity_component_football',
-                                                                              'influence_degree_football'])
+                                                                              'y_velocity_component_football'])
 
     # Renaming columns to remove the _player suffix
     football_and_player_tracking = football_and_player_tracking.rename(columns={
